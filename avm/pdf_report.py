@@ -178,10 +178,11 @@ def gerar_pdf(imovel: Imovel, solicitante: Solicitante, res: Resultado, settings
     el.append(_kv_table([
         ("Bairro / Região urbana", f"{imovel.bairro} — {imovel.regiao or '—'}"),
         ("CEP / Logradouro", " — ".join(x for x in [formatar_cep(imovel.cep) if imovel.cep else "", imovel.logradouro] if x) or "Não informado"),
-        ("Tipo de imóvel", imovel.tipo),
+        ("Tipo de imóvel / Padrão construtivo", f"{imovel.tipo} · padrão {imovel.padrao}"),
         ("Terreno (testada × profundidade)", dims),
         ("Área construída", f"{num(imovel.area_construida)} m²"),
         ("Quartos / Banheiros / Vagas", f"{imovel.quartos} / {imovel.banheiros} / {imovel.vagas if imovel.vagas is not None else '—'}"),
+        ("Bairros vizinhos declarados", ", ".join(imovel.vizinhos) or "Não informados"),
     ], st))
     el.append(Spacer(1, 3))
     el.append(Paragraph(f"<b>Melhorias e benfeitorias declaradas:</b> {melh}", st["p"]))
@@ -222,7 +223,7 @@ def gerar_pdf(imovel: Imovel, solicitante: Solicitante, res: Resultado, settings
         ("Mediana do R$/m² (M_unit)", brl(res.mediana_unit)),
         ("Média do R$/m² · Coef. variação", f"{brl(res.media_unit)} · {num(res.cv_unit * 100, 1)}%"),
         ("Valor base (M_unit × área construída)", brl(res.valor_base)),
-        ("Faixa de saneamento IQR (R$/m²)", iqr_txt),
+        ("Faixa de saneamento (IQR e 50–150% da mediana)", iqr_txt),
         ("Fator terreno", f"{num(res.fator_terreno, 3)}" + (f"  (mediana terrenos: {num(res.mediana_terreno_amostras, 0)} m²)" if res.mediana_terreno_amostras else "")),
         ("Fator melhorias", f"1 + {num(res.soma_melhorias * 100, 1)}% (teto 25%)"),
     ], st))
@@ -234,22 +235,22 @@ def gerar_pdf(imovel: Imovel, solicitante: Solicitante, res: Resultado, settings
 
     # Bloco 4
     el.append(Paragraph("4. Quadro Comparativo de Amostras (Mercado Online)", st["h"]))
-    head = ["#", "Fonte", "Bairro", "Á. constr. (m²)", "Á. terreno (m²)", "Qts", "Preço anunciado", "R$/m²", "Origem"]
+    head = ["#", "Fonte", "Bairro", "Padrão", "Á. constr.", "Á. terreno", "Qts", "Preço anunciado", "R$/m²", "Origem"]
     rows = [head]
     for i, r in enumerate(res.amostras.itertuples(), 1):
-        origem = "simulação" if r.simulada else (f'<link href="{r.url}" color="#0E7C66">link</link>' if r.url else "—")
+        origem = "simul." if r.simulada else (f'<link href="{r.url}" color="#0E7C66">link</link>' if r.url else "—")
         rows.append([
-            str(i), r.fonte, Paragraph(r.bairro, st["cell"]), num(r.area_construida, 1),
+            str(i), Paragraph(r.fonte, st["cell"]), Paragraph(r.bairro, st["cell"]), r.padrao or "n/i", num(r.area_construida, 1),
             num(r.area_terreno, 0) if r.area_terreno else "—", str(r.quartos or "—"),
             brl(r.preco), brl(r.preco_m2), Paragraph(origem, st["cell"]),
         ])
-    cw = [7, 20, 34, 20, 20, 9, 28, 22, 18]
+    cw = [7, 21, 31, 14, 17, 17, 9, 28, 22, 12]
     tab = Table(rows, colWidths=[c * mm for c in cw], repeatRows=1)
     tab.setStyle(TableStyle([
         ("FONT", (0, 0), (-1, 0), "Helvetica-Bold", 7.3), ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
         ("BACKGROUND", (0, 0), (-1, 0), NAVY), ("FONT", (0, 1), (-1, -1), "Helvetica", 7.6),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, SOFT]), ("GRID", (0, 0), (-1, -1), 0.3, LINE),
-        ("ALIGN", (3, 1), (7, -1), "RIGHT"), ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("ALIGN", (4, 1), (8, -1), "RIGHT"), ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
         ("TOPPADDING", (0, 0), (-1, -1), 2.5), ("BOTTOMPADDING", (0, 0), (-1, -1), 2.5),
     ]))
     el.append(tab)
@@ -257,7 +258,9 @@ def gerar_pdf(imovel: Imovel, solicitante: Solicitante, res: Resultado, settings
     fontes = "gerador de amostras simuladas (portais indisponíveis)" if res.simulado else (", ".join(res.status.fontes_ok) or "—")
     el.append(Paragraph(
         f"Fontes consultadas: {fontes} · Modo de coleta: {res.status.modo}. Amostras listadas de forma resumida e anônima "
-        f"(sem identificação de proprietários/anunciantes). Filtros: área construída ±30%, quartos ±1, mesmo tipo de imóvel.",
+        f"(sem identificação de proprietários/anunciantes). Critério de comparação: mesmo bairro (bairros vizinhos apenas se "
+        f"insuficiente), mesmo tipo e padrão construtivo, área construída ±30%, quartos ±1, banheiros ±1. "
+        f"n/i = padrão não identificado no anúncio.",
         st["small"]))
     for a in res.avisos:
         el.append(Paragraph(f"• {a}", st["small"]))

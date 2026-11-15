@@ -8,7 +8,7 @@ from avm.cep import consultar_cep
 from avm.collector import Coletor
 from avm.config import get_settings
 from avm.engine import AmostrasInsuficientes, avaliar
-from avm.models import MELHORIAS, TIPOS, Imovel, Solicitante
+from avm.models import MELHORIAS, PADRAO_DESC, PADROES, TIPOS, Imovel, Solicitante
 from avm.pdf_report import brl, gerar_pdf, num
 from avm.validators import (
     digits,
@@ -54,7 +54,7 @@ SS.setdefault("step", 1)
 SS.setdefault("saved", {})
 SS.setdefault("resultado", None)
 
-STEP1_KEYS = ["bairro_sel", "bairro_outro", "regiao_outro", "cep", "tipo", "largura", "comprimento", "irregular",
+STEP1_KEYS = ["bairro_sel", "regiao", "vizinhos", "padrao", "cep", "tipo", "largura", "comprimento", "irregular",
               "area_manual", "area_construida", "quartos", "banheiros", "vagas"] + [f"m_{k}" for k in MELHORIAS]
 STEP2_KEYS = ["nome", "cpf", "telefone", "email", "lgpd"]
 
@@ -104,15 +104,35 @@ def etapa1():
         st.subheader("📍 Localização")
         c1, c2 = st.columns([3, 2])
         with c1:
-            st.selectbox("Bairro *", B.opcoes_select(), index=None, placeholder="Digite para buscar o bairro…", key="bairro_sel",
-                         help="Bairros oficiais das 7 Regiões Urbanas + loteamentos conhecidos (ex.: Carandá Bosque).")
-            if SS.get("bairro_sel") == B.OUTRO:
-                o1, o2 = st.columns(2)
-                o1.text_input("Nome do bairro / condomínio *", key="bairro_outro")
-                o2.selectbox("Região urbana *", B.regioes(), index=None, key="regiao_outro", placeholder="Selecione")
-            elif SS.get("bairro_sel"):
-                oficial = B.resolver(SS.bairro_sel)
-                st.caption(f"Bairro oficial: **{oficial}** · Região Urbana **{B.regiao_de(oficial)}**")
+            st.selectbox(
+                "Bairro *", B.opcoes_select(), index=None, accept_new_options=True, key="bairro_sel",
+                placeholder="Digite o bairro (ex.: Água Limpa Park)",
+                help="Bairros oficiais e nomes usados pelos portais (loteamentos). Se o seu não aparecer, "
+                     "digite o nome e pressione Enter — ele será usado na pesquisa.",
+            )
+            sel = SS.get("bairro_sel")
+            if sel and SS.get("_bairro_ant") != sel:  # bairro mudou: sugere a região
+                SS._bairro_ant = sel
+                SS.regiao = B.regiao_de(B.interpretar(sel))
+            if sel:
+                interp = B.interpretar(sel)
+                of = B.oficial(interp)
+                if interp != sel:
+                    st.caption(f"Interpretado como **{interp}**.")
+                if of and B.chave(of) != B.chave(interp):
+                    st.caption(f"Pertence ao bairro oficial **{of}**.")
+                elif not of and interp not in B.comerciais():
+                    st.caption("Bairro fora da base — será pesquisado pelo nome digitado.")
+        with c2:
+            st.selectbox("Região urbana", B.regioes(), index=None, key="regiao", placeholder="Selecione",
+                         help="Usada apenas se os bairros vizinhos não forem informados.")
+        sel = SS.get("bairro_sel")
+        st.multiselect(
+            "Bairros vizinhos (usados somente se não houver imóveis suficientes do mesmo padrão no seu bairro)",
+            [b for b in B.opcoes_select() if not sel or B.chave(b) != B.chave(sel)],
+            accept_new_options=True, key="vizinhos", placeholder="Escolha ou digite os bairros que fazem divisa…",
+        )
+        c1, c2 = st.columns([3, 2])
         with c2:
             st.text_input("CEP (opcional)", key="cep", placeholder="79000-000", max_chars=9)
             cep = SS.get("cep", "")
@@ -125,6 +145,10 @@ def etapa1():
                 if r.ok and r.bairro and not SS.get("bairro_sel"):
                     st.caption(f"Bairro segundo os Correios: {r.bairro}")
         st.radio("Tipo de imóvel *", TIPOS, key="tipo", horizontal=True)
+        SS.setdefault("padrao", "Normal")
+        st.radio("Padrão construtivo *", PADROES, key="padrao", horizontal=True,
+                 help="A comparação usa apenas imóveis do mesmo padrão. " + " ".join(f"{k}: {v}" for k, v in PADRAO_DESC.items()))
+        st.caption(PADRAO_DESC[SS.padrao])
 
     with st.container(border=True):
         st.subheader("📐 Dimensões e tipologia")
@@ -166,10 +190,10 @@ def etapa1():
     if st.button("Avançar para dados do solicitante →", type="primary", use_container_width=True):
         erros = []
         sel = SS.get("bairro_sel")
-        if not sel:
-            erros.append("Selecione o bairro.")
-        elif sel == B.OUTRO and (not (SS.get("bairro_outro") or "").strip() or not SS.get("regiao_outro")):
-            erros.append("Informe o nome do bairro/condomínio e a região urbana.")
+        if not sel or not sel.strip():
+            erros.append("Informe o bairro.")
+        elif not SS.get("vizinhos") and not SS.get("regiao"):
+            erros.append("Informe os bairros vizinhos ou a região urbana (usados se faltarem amostras no seu bairro).")
         if digits(SS.get("cep", "")):
             cep_r = SS.get("_cep_res")
             if not cep_r or not cep_r.ok:
@@ -187,17 +211,11 @@ def etapa1():
             for e in erros:
                 st.error(e)
             return
-        if sel == B.OUTRO:
-            bairro, regiao = SS.bairro_outro.strip(), SS.regiao_outro
-            oficial = B.resolver(bairro)
-            if oficial:
-                bairro, regiao = oficial, B.regiao_de(oficial)
-        else:
-            bairro = B.resolver(sel)
-            regiao = B.regiao_de(bairro)
+        bairro = B.interpretar(sel)
+        vizinhos = list(dict.fromkeys(B.interpretar(v) for v in SS.get("vizinhos") or []))
         cep_res = SS.get("_cep_res")
         SS.imovel = Imovel(
-            bairro=bairro, regiao=regiao, tipo=SS.tipo,
+            bairro=bairro, regiao=SS.get("regiao"), tipo=SS.tipo, padrao=SS.padrao, vizinhos=vizinhos,
             area_construida=float(SS.area_construida),
             quartos=int(SS.quartos.rstrip("+")), banheiros=int(SS.banheiros.rstrip("+")),
             vagas=int(SS.vagas.rstrip("+")) if SS.get("vagas") else None,
@@ -214,7 +232,7 @@ def etapa1():
 def etapa2():
     restore(STEP2_KEYS)
     im: Imovel = SS.imovel
-    st.info(f"Imóvel: **{im.tipo}** · {im.bairro} ({im.regiao or '—'}) · {num(im.area_construida)} m² construídos · {im.quartos} quarto(s)", icon="🏠")
+    st.info(f"Imóvel: **{im.tipo}** padrão {im.padrao} · {im.bairro} ({im.regiao or '—'}) · {num(im.area_construida)} m² construídos · {im.quartos} quarto(s)", icon="🏠")
     with st.container(border=True):
         st.subheader("👤 Dados do solicitante (para emissão do laudo)")
         st.text_input("Nome completo *", key="nome", max_chars=120)
@@ -263,6 +281,8 @@ def etapa2():
             except AmostrasInsuficientes as exc:
                 status.update(label="Amostras insuficientes", state="error")
                 st.error(str(exc))
+                for fonte, motivo in coletor.status.falhas.items():
+                    st.caption(f"Fonte {fonte} indisponível: {motivo}")
                 return
             except Exception as exc:
                 status.update(label="Falha na coleta", state="error")
@@ -289,8 +309,12 @@ def etapa3():
             "amostras **simuladas** apenas para testar o fluxo e o PDF — não utilize como estimativa real.",
             icon="🧪",
         )
-    elif res.status.falhas:
-        st.caption("Algumas fontes falharam: " + ", ".join(res.status.falhas))
+    if res.status.falhas:
+        with st.expander(f"Situação das fontes de pesquisa ({len(res.status.falhas)} indisponível(is))"):
+            for fonte, motivo in res.status.falhas.items():
+                st.caption(f"**{fonte}** — {motivo}")
+            if res.status.fontes_ok:
+                st.caption("Fontes com resultados: " + ", ".join(res.status.fontes_ok))
 
     c1, c2 = st.columns([3, 2])
     with c1:
@@ -323,25 +347,31 @@ def etapa3():
             st.caption("↪ " + av)
 
     st.subheader("Amostras utilizadas")
+    st.caption(
+        ("✅ Todas as amostras são do **mesmo bairro** do imóvel." if res.nivel_tipo == "bairro"
+         else f"ℹ️ O bairro não tinha imóveis suficientes do mesmo padrão; pesquisa ampliada para: {res.nivel_geografico}.")
+        + " Critério: mesmo tipo e padrão construtivo, área ±30%, quartos ±1, banheiros ±1."
+    )
     df = res.amostras.copy()
     df["area_construida"] = df["area_construida"].map(lambda v: num(v, 1))
     df["area_terreno"] = df["area_terreno"].map(lambda v: num(v, 0) if v else "—")
     df["preco"] = df["preco"].map(brl)
     df["preco_m2"] = df["preco_m2"].map(brl)
-    df.loc[df["simulada"], "url"] = None
+    df["padrao"] = df["padrao"].replace("", "não ident.")
+    df["url"] = df["url"].where(~df["simulada"].astype(bool), "")
     st.dataframe(
-        df[["bairro", "area_construida", "area_terreno", "quartos", "preco", "preco_m2", "fonte", "url"]],
+        df[["bairro", "padrao", "area_construida", "area_terreno", "quartos", "preco", "preco_m2", "fonte", "url"]],
         hide_index=True, use_container_width=True,
         column_config={
-            "bairro": "Bairro", "area_construida": "Á. construída (m²)", "area_terreno": "Á. terreno (m²)",
+            "bairro": "Bairro", "padrao": "Padrão", "area_construida": "Á. construída (m²)", "area_terreno": "Á. terreno (m²)",
             "quartos": "Quartos", "preco": "Preço anunciado", "preco_m2": "R$/m²", "fonte": "Fonte",
             "url": st.column_config.LinkColumn("Origem", display_text="abrir anúncio"),
         },
     )
     if len(res.outliers):
-        with st.expander(f"Outliers removidos pelo critério IQR ({len(res.outliers)})"):
+        with st.expander(f"Outliers removidos no saneamento ({len(res.outliers)})"):
             lo, hi = res.limites_iqr
-            st.caption(f"Faixa aceita de R$/m²: {brl(lo)} a {brl(hi)}")
+            st.caption(f"Faixa aceita de R$/m² (IQR e 50%–150% da mediana): {brl(lo)} a {brl(hi)}")
             od = res.outliers[["bairro", "area_construida", "preco", "preco_m2", "fonte"]].copy()
             od["preco"], od["preco_m2"] = od["preco"].map(brl), od["preco_m2"].map(brl)
             st.dataframe(od, hide_index=True, use_container_width=True)

@@ -31,6 +31,8 @@ class Coletor:
     def _coletar(self, tipo: str, bairro: str, area_ref: float, quartos_ref: int) -> list[Amostra]:
         if self._mock:
             return self._gerar_mock(tipo, bairro, area_ref, quartos_ref)
+        if self._todas_bloqueadas():  # evita repetir timeouts para cada bairro vizinho
+            return []
         amostras: list[Amostra] = []
         usou_cache = False
         for fonte in self._fontes:
@@ -44,29 +46,32 @@ class Coletor:
                 continue
             try:
                 res = fetch_source(self.client, fonte, tipo, None if bairro == CIDADE else bairro)
-                self.cache.set(chave, [a.to_dict() for a in res])
+                if res:  # resultado vazio não é cacheado (pode ser falha silenciosa do portal)
+                    self.cache.set(chave, [a.to_dict() for a in res])
+                    if fonte not in self.status.fontes_ok:
+                        self.status.fontes_ok.append(fonte)
                 amostras += res
-                if fonte not in self.status.fontes_ok:
-                    self.status.fontes_ok.append(fonte)
-            except Exception as exc:  # bloqueio, timeout, mudança de layout...
-                self.status.falhas[fonte] = f"{type(exc).__name__}: {str(exc)[:120]}"
-        if not self.status.fontes_ok:
-            if not self.s.allow_mock:
-                raise RuntimeError(
-                    "Nenhuma fonte online respondeu e o modo simulado está desabilitado (AVM_ALLOW_MOCK=false). "
-                    f"Falhas: {self.status.falhas}"
-                )
+            except Exception as exc:  # bloqueio, timeout, mudança de layout, integração pendente...
+                self.status.falhas[fonte] = f"{type(exc).__name__}: {str(exc)[:160]}"
+        if not self.status.fontes_ok and self.s.allow_mock:
+            # nenhuma fonte trouxe anúncios (offline/bloqueio/integração pendente): modo demonstração
             self._mock = True
             return self._gerar_mock(tipo, bairro, area_ref, quartos_ref)
         if usou_cache and self.status.modo == "online" and not self.status.falhas:
             self.status.modo = "cache"
         return amostras
 
+    def _todas_bloqueadas(self) -> bool:
+        return not self.status.fontes_ok and set(self._fontes) <= set(self.status.falhas)
+
     def _gerar_mock(self, tipo, bairro, area_ref, quartos_ref) -> list[Amostra]:
         self.status.modo = "simulado"
         if bairro == CIDADE:
-            return mock.gerar_cidade(tipo, area_ref, quartos_ref)
-        return mock.gerar_bairro(bairro, tipo, area_ref, quartos_ref)
+            return mock.gerar_cidade(tipo, area_ref, quartos_ref, self.padrao_ref)
+        return mock.gerar_bairro(bairro, tipo, area_ref, quartos_ref, padrao=self.padrao_ref, regiao=self.regiao_ref)
+
+    padrao_ref: str = "Normal"
+    regiao_ref: str | None = None
 
     def bairro(self, tipo: str, bairro: str, area_ref: float, quartos_ref: int) -> list[Amostra]:
         return self._coletar(tipo, bairro, area_ref, quartos_ref)

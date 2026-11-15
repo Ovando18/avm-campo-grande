@@ -17,6 +17,14 @@ MELHORIAS: dict[str, tuple[str, float]] = {
 }
 TETO_MELHORIAS = 0.25
 
+# Padrão construtivo (classificação simplificada inspirada na NBR 12721 / NBR 14653)
+PADROES = ["Baixo", "Normal", "Alto"]
+PADRAO_DESC = {
+    "Baixo": "Acabamento simples: piso cerâmico comum, sem forro ou forro de PVC, esquadrias de ferro/alumínio simples.",
+    "Normal": "Acabamento médio: cerâmica/porcelanato comum, forro de gesso parcial, esquadrias de alumínio.",
+    "Alto": "Acabamento superior: porcelanato grande formato, gesso/sancas, projeto arquitetônico, materiais nobres.",
+}
+
 
 @dataclass
 class Imovel:
@@ -32,6 +40,8 @@ class Imovel:
     cep: str = ""
     logradouro: str = ""
     regiao: str | None = None
+    padrao: str = "Normal"
+    vizinhos: list[str] = field(default_factory=list)
     melhorias: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
@@ -60,6 +70,8 @@ class Amostra:
     vagas: int = 0
     url: str = ""
     simulada: bool = False
+    padrao: str = ""  # "" = não identificado no anúncio
+    titulo: str = ""
 
     @property
     def preco_m2(self) -> float:

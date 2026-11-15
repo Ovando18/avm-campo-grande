@@ -49,7 +49,13 @@ class Settings:
     zenrows_api_key: str = field(default_factory=lambda: _get("ZENROWS_API_KEY"))
     scraperapi_key: str = field(default_factory=lambda: _get("SCRAPERAPI_KEY"))
     scraper_timeout: int = field(default_factory=lambda: int(_get("SCRAPER_TIMEOUT", "20")))
-    scraper_sources: str = field(default_factory=lambda: _get("SCRAPER_SOURCES", "vivareal,zap,olx"))
+    scraper_sources: str = field(default_factory=lambda: _get("SCRAPER_SOURCES", "infoimoveis,vivareal,zap,olx"))
+    infoimoveis_search_url: str = field(
+        default_factory=lambda: _get(
+            "INFOIMOVEIS_SEARCH_URL",
+            "https://www.infoimoveis.com.br/busca?finalidade=venda&tipos={tipo}&estado=ms&cidade=campo-grande&bairros={bairro}&pagina={pagina}",
+        )
+    )
 
     allow_mock: bool = field(default_factory=lambda: _bool("AVM_ALLOW_MOCK", True))
     force_mock: bool = field(default_factory=lambda: _bool("AVM_FORCE_MOCK", False))
