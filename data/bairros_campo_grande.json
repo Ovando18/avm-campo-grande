@@ -1,0 +1,66 @@
+{
+  "municipio": "Campo Grande",
+  "uf": "MS",
+  "fonte": "Divisão oficial em 7 Regiões Urbanas (PLANURB / Perfil Socioeconômico de Campo Grande). Conferir periodicamente com a publicação mais recente da PLANURB.",
+  "regioes": {
+    "Centro": ["Amambaí", "América", "Bela Vista", "Cabreúva", "Carvalho", "Centro", "Cruzeiro", "Glória", "Itanhangá", "Jardim dos Estados", "Monte Castelo", "Planalto", "São Bento", "São Francisco"],
+    "Segredo": ["Coronel Antonino", "José Abrão", "Mata do Segredo", "Monte Líbano", "Nasser", "Nova Lima", "Seminário"],
+    "Prosa": ["Autonomista", "Carandá", "Chácara Cachoeira", "Chácara dos Poderes", "Estrela Dalva", "Margarida", "Mata do Jacinto", "Noroeste", "Novos Estados", "Santa Fé", "Veraneio"],
+    "Bandeira": ["Carlota", "Dr. Albuquerque", "Jardim Paulista", "Maria Aparecida Pedrossian", "Moreninha", "Rita Vieira", "São Lourenço", "Tiradentes", "TV Morena", "Universitário", "Vilasboas"],
+    "Anhanduizinho": ["Aero Rancho", "Alves Pereira", "Centenário", "Centro-Oeste", "Guanandi", "Jacy", "Jockey Club", "Lageado", "Los Angeles", "Parati", "Pioneiros", "Piratininga", "Taquarussu"],
+    "Lagoa": ["Bandeirantes", "Batistão", "Caiçara", "Coophavila II", "Leblon", "São Conrado", "Tarumã", "Taveirópolis", "Tijuca", "União"],
+    "Imbirussu": ["Nova Campo Grande", "Núcleo Industrial", "Panamá", "Popular", "Santo Amaro", "Santo Antônio", "Sobrinho"]
+  },
+  "regioes_adjacentes": {
+    "Centro": ["Prosa", "Segredo", "Bandeira", "Anhanduizinho", "Lagoa", "Imbirussu"],
+    "Segredo": ["Centro", "Prosa", "Imbirussu"],
+    "Prosa": ["Centro", "Segredo", "Bandeira"],
+    "Bandeira": ["Centro", "Prosa", "Anhanduizinho"],
+    "Anhanduizinho": ["Centro", "Bandeira", "Lagoa"],
+    "Lagoa": ["Centro", "Anhanduizinho", "Imbirussu"],
+    "Imbirussu": ["Centro", "Segredo", "Lagoa"]
+  },
+  "aliases": {
+    "Carandá Bosque": "Carandá",
+    "Jardim Carandá": "Carandá",
+    "Vila Margarida": "Margarida",
+    "Jardim Veraneio": "Veraneio",
+    "Vila Rica": "Universitário",
+    "Jardim TV Morena": "TV Morena",
+    "Vila Carlota": "Carlota",
+    "Jardim São Bento": "São Bento",
+    "Vila Glória": "Glória",
+    "Jardim Bela Vista": "Bela Vista",
+    "Jardim Autonomista": "Autonomista",
+    "Jardim Monte Líbano": "Monte Líbano",
+    "Jardim Seminário": "Seminário",
+    "Vila Nasser": "Nasser",
+    "Jardim Leblon": "Leblon",
+    "Jardim Tijuca": "Tijuca",
+    "Jardim Tarumã": "Tarumã",
+    "Vila Taveirópolis": "Taveirópolis",
+    "Jardim Panamá": "Panamá",
+    "Vila Sobrinho": "Sobrinho",
+    "Jardim Jacy": "Jacy",
+    "Jardim Centenário": "Centenário",
+    "Jardim Piratininga": "Piratininga",
+    "Jardim Los Angeles": "Los Angeles",
+    "Jardim Parati": "Parati",
+    "Jardim Aero Rancho": "Aero Rancho",
+    "Parque dos Poderes": "Chácara dos Poderes",
+    "Vilas Boas": "Vilasboas",
+    "Vila Alba": "Chácara Cachoeira",
+    "Jardim Mansur": "Chácara Cachoeira"
+  },
+  "preco_m2_referencia": {
+    "_nota": "Valores de referência (R$/m² construído, casas) usados SOMENTE pelo gerador de amostras simuladas (modo demonstração). Não são utilizados quando há coleta online real.",
+    "regiao": {"Centro": 5200, "Segredo": 3600, "Prosa": 5600, "Bandeira": 4100, "Anhanduizinho": 3100, "Lagoa": 3200, "Imbirussu": 2900},
+    "bairro": {
+      "Jardim dos Estados": 7200, "Chácara Cachoeira": 7600, "Santa Fé": 6900, "Carandá": 6500, "Autonomista": 6100,
+      "Chácara dos Poderes": 6200, "Tiradentes": 4300, "Rita Vieira": 4400, "Coronel Antonino": 3500, "Aero Rancho": 2700,
+      "Coophavila II": 2900, "Centro": 4800, "São Francisco": 5000, "Monte Castelo": 4700, "Vilasboas": 5300,
+      "Carlota": 4600, "TV Morena": 4900, "Mata do Jacinto": 4300, "Moreninha": 2900, "Los Angeles": 2900,
+      "Nova Lima": 3000, "Núcleo Industrial": 2400, "Tarumã": 3300, "Bela Vista": 5600, "Itanhangá": 6000
+    }
+  }
+}
