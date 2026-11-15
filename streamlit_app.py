@@ -1,16 +1,38 @@
 """AVM Campo Grande/MS — Avaliação Automatizada de Imóveis (Streamlit)."""
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
 import streamlit as st
 
-from avm import bairros as B
-from avm.cep import consultar_cep
-from avm.collector import Coletor
-from avm.config import get_settings
-from avm.engine import AmostrasInsuficientes, avaliar
-from avm.models import MELHORIAS, PADRAO_DESC, PADROES, TIPOS, Imovel, Solicitante
-from avm.pdf_report import brl, gerar_pdf, num
-from avm.validators import (
+
+def _recarregar_avm_se_alterado() -> None:
+    """O Streamlit reexecuta este script a cada atualização do repositório, mas mantém em memória os módulos
+    já importados. Se os arquivos do pacote `avm` mudaram (ex.: após um git push), descarta a versão antiga
+    para que a nova seja importada — evita ImportError por mistura de versões."""
+    raiz = Path(__file__).resolve().parent
+    arquivos = list((raiz / "avm").glob("*.py")) + list((raiz / "data").glob("*.json"))
+    carimbo = max((f.stat().st_mtime for f in arquivos), default=0.0)
+    pkg = sys.modules.get("avm")
+    if pkg is not None and getattr(pkg, "_carimbo", None) != carimbo:
+        for nome in [m for m in sys.modules if m == "avm" or m.startswith("avm.")]:
+            del sys.modules[nome]
+    import avm
+
+    avm._carimbo = carimbo
+
+
+_recarregar_avm_se_alterado()
+
+from avm import bairros as B  # noqa: E402
+from avm.cep import consultar_cep  # noqa: E402
+from avm.collector import Coletor  # noqa: E402
+from avm.config import get_settings  # noqa: E402
+from avm.engine import AmostrasInsuficientes, avaliar  # noqa: E402
+from avm.models import MELHORIAS, PADRAO_DESC, PADROES, TIPOS, Imovel, Solicitante  # noqa: E402
+from avm.pdf_report import brl, gerar_pdf, num  # noqa: E402
+from avm.validators import (  # noqa: E402
     digits,
     formatar_cep,
     formatar_cpf,
