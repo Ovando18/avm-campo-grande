@@ -163,7 +163,11 @@ def etapa1():
                     SS._cep_res = consultar_cep(cep)
                     SS._cep_checked = digits(cep)
                 r = SS._cep_res
-                (st.success if r.ok else st.error)(r.mensagem + (f" {r.logradouro}" if r.logradouro else ""), icon="✅" if r.ok else "⚠️")
+                msg = r.mensagem + (f" {r.logradouro}" if r.logradouro else "")
+                if r.ok:
+                    st.success(msg, icon="✅")
+                else:
+                    st.error(msg, icon="⚠️")
                 if r.ok and r.bairro and not SS.get("bairro_sel"):
                     st.caption(f"Bairro segundo os Correios: {r.bairro}")
         st.radio("Tipo de imóvel *", TIPOS, key="tipo", horizontal=True)
@@ -263,9 +267,15 @@ def etapa2():
         c2.text_input("Telefone / WhatsApp *", key="telefone", placeholder="(67) 90000-0000", max_chars=16)
         cpf, tel = SS.get("cpf", ""), SS.get("telefone", "")
         if digits(cpf):
-            (c1.caption("✅ " + formatar_cpf(cpf)) if validar_cpf(cpf) else c1.caption("⚠️ CPF inválido (dígitos verificadores)"))
+            if validar_cpf(cpf):
+                c1.caption("✅ " + formatar_cpf(cpf))
+            else:
+                c1.caption("⚠️ CPF inválido (dígitos verificadores)")
         if digits(tel):
-            (c2.caption("✅ " + formatar_telefone(tel)) if validar_telefone(tel) else c2.caption("⚠️ Telefone inválido"))
+            if validar_telefone(tel):
+                c2.caption("✅ " + formatar_telefone(tel))
+            else:
+                c2.caption("⚠️ Telefone inválido")
         st.text_input("E-mail *", key="email", placeholder="nome@exemplo.com.br")
         st.checkbox(
             "Autorizo o tratamento dos meus dados pessoais, nos termos da LGPD (Lei nº 13.709/2018), exclusivamente para a "

@@ -10,3 +10,7 @@ headless = true
 
 [browser]
 gatherUsageStats = false
+
+[runner]
+# Desliga o "magic" (exibição automática de expressões soltas no script)
+magicEnabled = false
